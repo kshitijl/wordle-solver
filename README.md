@@ -12,6 +12,8 @@ It's "tares".
 
 Other very good first moves: lares, rales, rates, tales, arles, nares, tears, tores, reals.
 
+Of course this depends on what dictionary you use.
+
 # Sample session
 
 ![sample session](./session.png)
@@ -79,3 +81,14 @@ move. Then, it returns the move with highest response entropy.
 A key insight is that the history of past moves doesn't matter except
 in that it tells us which words are still possible contenders for being
 the answer.
+
+# Known bugs and limitations
+
+## Repeat letters
+It doesn't deal with repeat letters correctly I think. The overall mathematical
+framework is correct, but I think the `predict` function is incorrect.
+
+## Slow
+The first call to `eliminate` is slow. I'm tempted to rewrite this in Rust, and if 
+that's still a bit too slow, then parallelizing. The computation is embarrassingly
+parallel so that's definitely worth a shot.
