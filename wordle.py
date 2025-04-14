@@ -31,6 +31,13 @@ class Response:
 
 
 def create_response(s: str) -> Response:
+    """After a move is played, we get a response from the game. It's easier to
+    type those responses as short strings like "nwr" to mean that one letter
+    was not present, the next was present but in the wrong place, and the next
+    was in the right place. This function turns these strings into a typed
+    [Response].
+
+    """
     elems = []
     for c in s:
         assert c in "nwr"
@@ -47,9 +54,14 @@ def create_response(s: str) -> Response:
 
 @cache
 def predict(move: Move, answer: Answer) -> Response:
+    """If the true answer to the puzzle is the word [answer], and we play the
+    word [move], then what would be the game's [Response], i.e., the clues that
+    it would give back?
+
+    """
     assert len(move) == len(answer)
     response_elems = []
-    for (move_elem, answer_elem) in zip(move, answer):
+    for move_elem, answer_elem in zip(move, answer):
         if move_elem == answer_elem:
             response_elems.append(ResponseElem.RightPlace)
         elif move_elem in answer:
@@ -61,10 +73,18 @@ def predict(move: Move, answer: Answer) -> Response:
 
 @cache
 def is_consistent(answer: Answer, move: Move, response: Response) -> bool:
+    """If the true answer to the puzzle is the word [answer], and we play the
+    word [move], then would the game respond with [response]?
+
+    """
     return predict(move, answer) == response
 
 
 def compute_entropy(dist: dict[Response, int]) -> float:
+    """Given a dictionary of Response -> how often that response arises,
+    compute the entropy of the probability distribution.
+
+    """
     total = float(sum(dist.values()))
     probabilities = [float(n) / total for n in dist.values()]
     return -sum([p * log(p) for p in probabilities])
@@ -81,6 +101,11 @@ class GameState(object):
         }
 
     def eliminate(self, move, response):
+        """We have played the word [move] and the game responded with
+        [response]. Eliminate all possibilities that are inconsistent with that
+        response.
+
+        """
         print(f"Before: {len(self.possible_answers)} possibilities")
         self._eliminate(Move(move), create_response(response))
         print(f"After: {len(self.possible_answers)} possibilities")
@@ -88,6 +113,32 @@ class GameState(object):
             print(self.possible_answers)
 
     def best_move(self) -> Move:
+        """Given the current state of the game, what's the best move?
+
+        The best move is the one that gives us "most information".
+
+        To develop some intuition, imagine playing a move such that, for all
+        possible true answers, the game would produce the same response. It is
+        useless to play this move. Playing it gives us no information. The
+        distribution of responses over answers looks like a big spike. The
+        precise way of saying that is that this distribution has low entropy.
+
+        Imagine playing a move that elicits a different response from the game
+        for each different possible answer. That would be amazing! We would
+        play this move. The game would give us its response. We would eliminate
+        all answers that are inconsistent with that response, leaving the one
+        and only true answer. We win the game next move. The precise way of
+        saying that is that this distribution has high entropy.
+
+        This function computes the entropy of the response distribution for
+        each possible move, by iterating over each possible answer for each
+        move. Then, it returns the move with highest response entropy.
+
+        A key insight is that the history of past moves doesn't matter except
+        in that it tells us which words are still possible contenders for being
+        the answer.
+
+        """
         response_distribution: dict[Move, dict[Response, int]] = defaultdict(
             lambda: defaultdict(int)
         )
