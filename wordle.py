@@ -139,11 +139,23 @@ class GameState(object):
         the answer.
 
         """
+        if len(self.possible_answers) == 1:
+            return Move(list(self.possible_answers)[0])
+
         response_distribution: dict[Move, dict[Response, int]] = defaultdict(
             lambda: defaultdict(int)
         )
 
-        for move in self.dictionary:
+        total_moves = len(self.dictionary)
+        print_every = int(total_moves / 10)
+        print(
+            f"There are {total_moves} moves and {len(self.possible_answers)} answers to evaluate. Will print progress every {print_every} moves"
+        )
+        for i, move in enumerate(self.dictionary):
+            i += 1
+            if i % print_every == 0:
+                print(f"Evaluated {i} out of {total_moves} moves")
+
             move = Move(move)
             for answer in self.possible_answers:
                 prediction = predict(move, answer)
