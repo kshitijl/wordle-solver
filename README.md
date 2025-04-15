@@ -74,6 +74,11 @@ all answers that are inconsistent with that response, leaving the one
 and only true answer. We win the game next move. The precise way of
 saying that is that this distribution has high entropy.
 
+Another way of saying this is that a good move is one where, no matter
+what the true answer is, you'll end up eliminating a lot of 
+possibilities once you hear the response. Entropy is a way of making
+that intuition formal.
+
 This function computes the entropy of the response distribution for
 each possible move, by iterating over each possible answer for each
 move. Then, it returns the move with highest response entropy.
