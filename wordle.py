@@ -3,6 +3,7 @@ from enum import Enum
 from dataclasses import dataclass
 from functools import cache
 from math import log
+from typing import List, Tuple
 
 
 class Answer(str):
@@ -27,7 +28,7 @@ class ResponseType(Enum):
 @dataclass(eq=True, frozen=True)
 class Response:
     type_: ResponseType
-    elems: tuple[ResponseElem]
+    elems: Tuple[ResponseElem, ...]
 
 
 def create_response(s: str) -> Response:
@@ -38,7 +39,7 @@ def create_response(s: str) -> Response:
     [Response].
 
     """
-    elems = []
+    elems: List[ResponseElem] = []
     for c in s:
         assert c in "nwr"
         if c == "n":
@@ -49,6 +50,7 @@ def create_response(s: str) -> Response:
             elems.append(ResponseElem.RightPlace)
         else:
             assert False
+
     return Response(type_=ResponseType.IsAWord, elems=tuple(elems))
 
 
