@@ -12,6 +12,8 @@ It's "tares".
 
 Other very good first moves: lares, rales, rates, tales, arles, nares, tears, tores, reals.
 
+Of course this depends on what dictionary you use.
+
 # Sample session
 
 ![sample session](./session.png)
@@ -72,6 +74,11 @@ all answers that are inconsistent with that response, leaving the one
 and only true answer. We win the game next move. The precise way of
 saying that is that this distribution has high entropy.
 
+Another way of saying this is that a good move is one where, no matter
+what the true answer is, you'll end up eliminating a lot of 
+possibilities once you hear the response. Entropy is a way of making
+that intuition formal.
+
 This function computes the entropy of the response distribution for
 each possible move, by iterating over each possible answer for each
 move. Then, it returns the move with highest response entropy.
@@ -79,3 +86,14 @@ move. Then, it returns the move with highest response entropy.
 A key insight is that the history of past moves doesn't matter except
 in that it tells us which words are still possible contenders for being
 the answer.
+
+# Known bugs and limitations
+
+## Repeat letters
+It doesn't deal with repeat letters correctly I think. The overall mathematical
+framework is correct, but I think the `predict` function is incorrect.
+
+## Slow
+The first call to `eliminate` is slow. I'm tempted to rewrite this in Rust, and if 
+that's still a bit too slow, then parallelizing. The computation is embarrassingly
+parallel so that's definitely worth a shot.
