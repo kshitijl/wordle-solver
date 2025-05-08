@@ -1,0 +1,21 @@
+There are 1379 moves and 1379 answers to evaluate. Will print progress every 137 moves
+Evaluated 137 out of 1379 moves
+Evaluated 274 out of 1379 moves
+Evaluated 411 out of 1379 moves
+Evaluated 548 out of 1379 moves
+Evaluated 685 out of 1379 moves
+Evaluated 822 out of 1379 moves
+Evaluated 959 out of 1379 moves
+Evaluated 1096 out of 1379 moves
+Evaluated 1233 out of 1379 moves
+Evaluated 1370 out of 1379 moves
+('tales', 4.2443827965973515)
+('tears', 4.240796319417249)
+('rates', 4.230017611125641)
+('lanes', 4.181805855035742)
+('tires', 4.178292331777293)
+('tries', 4.173405602819977)
+('raise', 4.13987580138158)
+('tiles', 4.106227154859673)
+('tones', 4.093705700566404)
+('roles', 4.092025247551148)

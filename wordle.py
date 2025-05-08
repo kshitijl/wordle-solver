@@ -3,7 +3,6 @@ from enum import Enum
 from dataclasses import dataclass
 from functools import cache
 from math import log
-from typing import List, Tuple
 
 
 class Answer(str):
@@ -20,15 +19,9 @@ class ResponseElem(Enum):
     RightPlace = 3
 
 
-class ResponseType(Enum):
-    NotAWord = 1
-    IsAWord = 2
-
-
 @dataclass(eq=True, frozen=True)
 class Response:
-    type_: ResponseType
-    elems: Tuple[ResponseElem, ...]
+    elems: int
 
 
 def create_response(s: str) -> Response:
@@ -39,19 +32,21 @@ def create_response(s: str) -> Response:
     [Response].
 
     """
-    elems: List[ResponseElem] = []
+    # elems: List[ResponseElem] = []
+    response_packed = 0
     for c in s:
         assert c in "nwr"
         if c == "n":
-            elems.append(ResponseElem.NotPresent)
+            elem = ResponseElem.NotPresent
         elif c == "w":
-            elems.append(ResponseElem.WrongPlace)
+            elem = ResponseElem.WrongPlace
         elif c == "r":
-            elems.append(ResponseElem.RightPlace)
+            elem = ResponseElem.RightPlace
         else:
             assert False
+        response_packed = response_packed * 10 + elem.value
 
-    return Response(type_=ResponseType.IsAWord, elems=tuple(elems))
+    return Response(elems=response_packed)
 
 
 @cache
@@ -62,15 +57,22 @@ def predict(move: Move, answer: Answer) -> Response:
 
     """
     assert len(move) == len(answer)
-    response_elems = []
+    # response_elems = []
+    response_packed = 0
     for move_elem, answer_elem in zip(move, answer):
         if move_elem == answer_elem:
-            response_elems.append(ResponseElem.RightPlace)
+            response_item = ResponseElem.RightPlace
         elif move_elem in answer:
-            response_elems.append(ResponseElem.WrongPlace)
+            response_item = ResponseElem.WrongPlace
         else:
-            response_elems.append(ResponseElem.NotPresent)
-    return Response(type_=ResponseType.IsAWord, elems=tuple(response_elems))
+            response_item = ResponseElem.NotPresent
+
+        response_packed = response_packed * 10 + response_item.value
+
+    # [1, 1, 3, 2, 3]
+    # 3**5 = 243
+    # -> 11323
+    return Response(elems=response_packed)
 
 
 @cache
@@ -169,5 +171,13 @@ class GameState(object):
             entropy[move] = compute_entropy(distribution)
 
         entropy_list = list(reversed(sorted(entropy.items(), key=lambda y: y[1])))
-        print(entropy_list[:10])
+        for top10_item in entropy_list[:10]:
+            print(top10_item)
         return entropy_list[0][0]
+
+
+if __name__ == "__main__":
+    dictionary = [x.strip() for x in open("common.txt").readlines()]
+    dictionary_ = [Answer(x.lower()) for x in dictionary if len(x) == 5]
+    game = GameState(set(dictionary_))
+    game.best_move()
