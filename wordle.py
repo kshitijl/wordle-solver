@@ -5,11 +5,11 @@ from functools import cache
 from math import log
 
 
-class Answer(str):
+class Answer(int):
     pass
 
 
-class Move(str):
+class Move(int):
     pass
 
 
@@ -19,9 +19,8 @@ class ResponseElem(Enum):
     RightPlace = 3
 
 
-@dataclass(eq=True, frozen=True)
-class Response:
-    elems: int
+class Response(int):
+    pass
 
 
 def create_response(s: str) -> Response:
@@ -46,7 +45,28 @@ def create_response(s: str) -> Response:
             assert False
         response_packed = response_packed * 10 + elem.value
 
-    return Response(elems=response_packed)
+    return Response(response_packed)
+
+
+@cache
+def pack_word(word: str) -> int:
+    assert len(word) == 5
+    packed: int = 0
+    ord_a = ord("a")
+    for c in word:
+        packed = packed * 26 + ord(c.lower()) - ord_a
+    return packed
+
+
+@cache
+def unpack_word(word: int) -> str:
+    unpacked = []
+    ord_a = ord("a")
+    for i in range(5):
+        c = word % 26
+        word = word // 26
+        unpacked.append(chr(c + ord_a))
+    return "".join(reversed(unpacked))
 
 
 @cache
@@ -56,20 +76,20 @@ def predict(move: Move, answer: Answer) -> Response:
     it would give back?
 
     """
-    assert len(move) == len(answer)
 
     response_packed = 0
-    for move_elem, answer_elem in zip(move, answer):
+    unpacked_move, unpacked_answer = unpack_word(move), unpack_word(answer)
+    for move_elem, answer_elem in zip(unpacked_move, unpacked_answer):
         if move_elem == answer_elem:
             response_item = ResponseElem.RightPlace
-        elif move_elem in answer:
+        elif move_elem in unpacked_answer:
             response_item = ResponseElem.WrongPlace
         else:
             response_item = ResponseElem.NotPresent
 
         response_packed = response_packed * 10 + response_item.value
 
-    return Response(elems=response_packed)
+    return Response(response_packed)
 
 
 @cache
@@ -160,7 +180,7 @@ class GameState(object):
 
             move = Move(possible_answer)
             for answer in self.possible_answers:
-                prediction = predict(move, answer)
+                prediction: Response = predict(move, answer)
                 response_distribution[move][prediction] += 1
 
         entropy: dict[Move, float] = {}
@@ -169,12 +189,14 @@ class GameState(object):
 
         entropy_list = list(reversed(sorted(entropy.items(), key=lambda y: y[1])))
         for top10_item in entropy_list[:10]:
-            print(top10_item)
+            print((unpack_word(top10_item[0]), top10_item[1]))
         return entropy_list[0][0]
 
 
 if __name__ == "__main__":
+    for test_word in ["tales", "stare", "zzzzz", "aaaaa"]:
+        assert unpack_word(pack_word(test_word)) == test_word
     dictionary = [x.strip() for x in open("common.txt").readlines()]
-    dictionary_ = [Answer(x.lower()) for x in dictionary if len(x) == 5]
+    dictionary_ = [Answer(pack_word(x.lower())) for x in dictionary if len(x) == 5]
     game = GameState(set(dictionary_))
     game.best_move()
