@@ -57,7 +57,7 @@ def predict(move: Move, answer: Answer) -> Response:
 
     """
     assert len(move) == len(answer)
-    # response_elems = []
+
     response_packed = 0
     for move_elem, answer_elem in zip(move, answer):
         if move_elem == answer_elem:
@@ -69,9 +69,6 @@ def predict(move: Move, answer: Answer) -> Response:
 
         response_packed = response_packed * 10 + response_item.value
 
-    # [1, 1, 3, 2, 3]
-    # 3**5 = 243
-    # -> 11323
     return Response(elems=response_packed)
 
 
