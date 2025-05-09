@@ -3,6 +3,19 @@ from enum import Enum
 from dataclasses import dataclass
 from functools import cache
 from math import log
+import time
+from contextlib import contextmanager
+
+
+@contextmanager
+def timing_context(description="Execution"):
+    start_time = time.perf_counter()
+    try:
+        yield
+    finally:
+        end_time = time.perf_counter()
+        execution_time = end_time - start_time
+        print(f"{description} took: {execution_time:.4f} seconds")
 
 
 class Answer(int):
@@ -199,4 +212,7 @@ if __name__ == "__main__":
     dictionary = [x.strip() for x in open("common.txt").readlines()]
     dictionary_ = [Answer(pack_word(x.lower())) for x in dictionary if len(x) == 5]
     game = GameState(set(dictionary_))
-    game.best_move()
+    with timing_context("first time"):
+        game.best_move()
+    with timing_context("second time"):
+        game.best_move()
