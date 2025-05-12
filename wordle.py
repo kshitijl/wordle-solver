@@ -5,6 +5,7 @@ import time
 from contextlib import contextmanager
 from typing import List, Any
 import numpy as np
+import h5py
 
 
 @contextmanager
@@ -185,12 +186,10 @@ class GameState(object):
         if len(self.possible_answers) == 1:
             return Move(list(self.possible_answers)[0])
 
-        # TODO: either allcate this in one big fell swoop or go back to defaultdict of defaultdict
-        response_distribution: dict[Move, np.ndarray[Any, Any]] = defaultdict(
-            lambda: np.zeros(256, np.uint16)
-        )
-
         total_moves = len(self.dictionary)
+
+        response_distribution = np.zeros((total_moves, 256))
+
         print_every = int(total_moves / 10)
         print(
             f"There are {total_moves} moves and {len(self.possible_answers)} answers to evaluate. Will print progress every {print_every} moves"
@@ -208,8 +207,8 @@ class GameState(object):
                 response_distribution[move][prediction] += 1
 
         entropy: dict[Move, float] = {}
-        for move, distribution in response_distribution.items():
-            entropy[move] = compute_entropy(distribution)
+        for move_idx in range(total_moves):
+            entropy[Move(move_idx)] = compute_entropy(response_distribution[move_idx])
 
         entropy_list = list(reversed(sorted(entropy.items(), key=lambda y: y[1])))
         for top10_item in entropy_list[:10]:
@@ -218,12 +217,34 @@ class GameState(object):
 
 
 if __name__ == "__main__":
-    dictionary = [x.strip() for x in open("dictionary.txt").readlines()]
+    compute_predictions = False
+    common_words_only = False
+
+    if common_words_only:
+        dictionary_file, predictions_file = (
+            "common.txt",
+            "predictions-common-words.hdf5",
+        )
+    else:
+        dictionary_file, predictions_file = "dictionary.txt", "predictions.hdf5"
+
+    dictionary = [x.strip() for x in open(dictionary_file).readlines()]
     dictionary_ = list(sorted([x.lower() for x in dictionary if len(x) == 5]))
     game = GameState(dictionary_)
-    with timing_context("precompute"):
-        game.compute_all_predictions()
+    if compute_predictions:
+        with timing_context("precompute"):
+            game.compute_all_predictions()
+            # with h5py.File("predictions.hdf5", "w") as f:
+            #     dset = f.create_dataset(
+            #         "data_array", data=game.predictions, compression="gzip", compression_opts=4
+            #     )
+            #     dset.attrs["num_words"] = len(dictionary)
+            #     dset.attrs["version"] = 1
+    else:
+        assert not compute_predictions
+        with h5py.File(predictions_file, "r") as f:
+            game.predictions = f["data_array"][:]
+    print(len(dictionary_), game.predictions.shape[0])
+    assert len(dictionary_) * len(dictionary_) == game.predictions.shape[0]
     with timing_context("first time"):
-        game.best_move()
-    with timing_context("second time"):
         game.best_move()
