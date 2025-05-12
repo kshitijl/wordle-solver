@@ -109,6 +109,16 @@ def compute_entropy(dist: np.ndarray) -> float:
     return -sum([p * log(p) for p in probabilities])
 
 
+def compute_entropy_dict(dist: dict[Response, int]) -> float:
+    """Given a dictionary of Response -> how often that response arises,
+    compute the entropy of the probability distribution.
+
+    """
+    total = float(sum(dist.values()))
+    probabilities = [float(n) / total for n in dist.values()]
+    return -sum([p * log(p) for p in probabilities])
+
+
 class GameState(object):
     def __init__(self, dictionary: List[str]):
         self.dictionary: List[str] = dictionary
@@ -188,7 +198,8 @@ class GameState(object):
 
         total_moves = len(self.dictionary)
 
-        response_distribution = np.zeros((total_moves, 256))
+        # response_distribution = np.zeros((total_moves, 256))
+        response_distribution: dict[Move, dict] = defaultdict(lambda: defaultdict(int))
 
         print_every = int(total_moves / 10)
         print(
@@ -208,7 +219,8 @@ class GameState(object):
 
         entropy: dict[Move, float] = {}
         for move_idx in range(total_moves):
-            entropy[Move(move_idx)] = compute_entropy(response_distribution[move_idx])
+            move = Move(move_idx)
+            entropy[move] = compute_entropy_dict(response_distribution[move])
 
         entropy_list = list(reversed(sorted(entropy.items(), key=lambda y: y[1])))
         for top10_item in entropy_list[:10]:
