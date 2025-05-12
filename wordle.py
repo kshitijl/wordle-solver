@@ -109,6 +109,16 @@ def compute_entropy(dist: np.ndarray) -> float:
     return -sum([p * log(p) for p in probabilities])
 
 
+def compute_entropy_arr(dist: List[int]) -> float:
+    """Given a dictionary of Response -> how often that response arises,
+    compute the entropy of the probability distribution.
+
+    """
+    total = float(sum(dist))
+    probabilities = [float(n) / total for n in dist if n > 0]
+    return -sum([p * log(p) for p in probabilities])
+
+
 def compute_entropy_dict(dist: dict[Response, int]) -> float:
     """Given a dictionary of Response -> how often that response arises,
     compute the entropy of the probability distribution.
@@ -199,28 +209,30 @@ class GameState(object):
         total_moves = len(self.dictionary)
 
         # response_distribution = np.zeros((total_moves, 256))
-        response_distribution: dict[Move, dict] = defaultdict(lambda: defaultdict(int))
+        # response_distribution: dict[Move, dict] = defaultdict(lambda: defaultdict(int))
 
         print_every = int(total_moves / 10)
         print(
             f"There are {total_moves} moves and {len(self.possible_answers)} answers to evaluate. Will print progress every {print_every} moves"
         )
 
+        entropy: dict[Move, float] = {}
+        # response_distribution = np.zeros(256, dtype=int)
+
         for possible_move_idx in range(len(self.dictionary)):
             if possible_move_idx % print_every == 0:
                 print(f"Evaluated {possible_move_idx} out of {total_moves} moves")
 
             move = Move(possible_move_idx)
+            # response_distribution: dict = defaultdict(int)
+            # response_distribution.fill(0)
+            response_distribution = [0] * 256
             for answer in self.possible_answers:
                 prediction: Response = self.predictions[
                     possible_move_idx * total_moves + answer
                 ]
-                response_distribution[move][prediction] += 1
-
-        entropy: dict[Move, float] = {}
-        for move_idx in range(total_moves):
-            move = Move(move_idx)
-            entropy[move] = compute_entropy_dict(response_distribution[move])
+                response_distribution[prediction] += 1
+            entropy[move] = compute_entropy_arr(response_distribution)
 
         entropy_list = list(reversed(sorted(entropy.items(), key=lambda y: y[1])))
         for top10_item in entropy_list[:10]:
