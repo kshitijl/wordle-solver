@@ -1,10 +1,10 @@
 from collections import defaultdict
 from enum import Enum
-from dataclasses import dataclass
-from functools import cache
 from math import log
 import time
 from contextlib import contextmanager
+from typing import List, Any
+import numpy as np
 
 
 @contextmanager
@@ -27,9 +27,9 @@ class Move(int):
 
 
 class ResponseElem(Enum):
-    NotPresent = 1
-    WrongPlace = 2
-    RightPlace = 3
+    NotPresent = 0
+    WrongPlace = 1
+    RightPlace = 2
 
 
 class Response(int):
@@ -56,34 +56,13 @@ def create_response(s: str) -> Response:
             elem = ResponseElem.RightPlace
         else:
             assert False
-        response_packed = response_packed * 10 + elem.value
+        response_packed = response_packed * 3 + elem.value
 
+    assert response_packed < 256
     return Response(response_packed)
 
 
-@cache
-def pack_word(word: str) -> int:
-    assert len(word) == 5
-    packed: int = 0
-    ord_a = ord("a")
-    for c in word:
-        packed = packed * 26 + ord(c.lower()) - ord_a
-    return packed
-
-
-@cache
-def unpack_word(word: int) -> str:
-    unpacked = []
-    ord_a = ord("a")
-    for i in range(5):
-        c = word % 26
-        word = word // 26
-        unpacked.append(chr(c + ord_a))
-    return "".join(reversed(unpacked))
-
-
-@cache
-def predict(move: Move, answer: Answer) -> Response:
+def predict_(move: str, answer: str) -> Response:
     """If the true answer to the puzzle is the word [answer], and we play the
     word [move], then what would be the game's [Response], i.e., the clues that
     it would give back?
@@ -91,60 +70,90 @@ def predict(move: Move, answer: Answer) -> Response:
     """
 
     response_packed = 0
-    unpacked_move, unpacked_answer = unpack_word(move), unpack_word(answer)
-    for move_elem, answer_elem in zip(unpacked_move, unpacked_answer):
+
+    for move_elem, answer_elem in zip(move, answer):
         if move_elem == answer_elem:
             response_item = ResponseElem.RightPlace
-        elif move_elem in unpacked_answer:
+        elif move_elem in answer:
             response_item = ResponseElem.WrongPlace
         else:
             response_item = ResponseElem.NotPresent
 
-        response_packed = response_packed * 10 + response_item.value
+        response_packed = response_packed * 3 + response_item.value
 
+    assert response_packed < 256
     return Response(response_packed)
 
 
-@cache
+def predict(dictionary: List[str], move: Move, answer: Answer) -> Response:
+    return predict_(dictionary[move], dictionary[answer])
+
+
 def is_consistent(answer: Answer, move: Move, response: Response) -> bool:
     """If the true answer to the puzzle is the word [answer], and we play the
     word [move], then would the game respond with [response]?
 
     """
-    return predict(move, answer) == response
+    # return predict(move, answer) == response
+    return True
 
 
-def compute_entropy(dist: dict[Response, int]) -> float:
+def compute_entropy(dist: np.ndarray) -> float:
     """Given a dictionary of Response -> how often that response arises,
     compute the entropy of the probability distribution.
 
     """
-    total = float(sum(dist.values()))
-    probabilities = [float(n) / total for n in dist.values()]
+    total = float(np.sum(dist))
+    probabilities = [float(n) / total for n in dist if n > 0]
     return -sum([p * log(p) for p in probabilities])
 
 
 class GameState(object):
-    def __init__(self, dictionary: set[Answer]):
-        self.possible_answers = dictionary
-        self.dictionary = dictionary
+    def __init__(self, dictionary: List[str]):
+        self.dictionary: List[str] = dictionary
+        self.possible_answers: List[Answer] = [
+            Answer(x) for x in range(len(self.dictionary))
+        ]
 
-    def _eliminate(self, move: Move, response: Response):
-        self.possible_answers = {
-            x for x in self.possible_answers if is_consistent(x, move, response)
-        }
+    # def _eliminate(self, move: Move, response: Response):
+    #     self.possible_answers = [
+    #         x for x in self.possible_answers if is_consistent(x, move, response)
+    #     ]
 
-    def eliminate(self, move, response):
-        """We have played the word [move] and the game responded with
-        [response]. Eliminate all possibilities that are inconsistent with that
-        response.
+    # def eliminate(self, move, response):
+    #     """We have played the word [move] and the game responded with
+    #     [response]. Eliminate all possibilities that are inconsistent with that
+    #     response.
 
-        """
-        print(f"Before: {len(self.possible_answers)} possibilities")
-        self._eliminate(Move(move), create_response(response))
-        print(f"After: {len(self.possible_answers)} possibilities")
-        if len(self.possible_answers) < 20:
-            print(self.possible_answers)
+    #     """
+    #     print(f"Before: {len(self.possible_answers)} possibilities")
+    #     self._eliminate(Move(move), create_response(response))
+    #     print(f"After: {len(self.possible_answers)} possibilities")
+    #     if len(self.possible_answers) < 20:
+    #         print(self.possible_answers)
+
+    def compute_all_predictions(self):
+        num_words = len(self.dictionary)
+        self.predictions = np.zeros(num_words * num_words, dtype=np.uint8)
+
+        total_moves = len(self.dictionary)
+        print_every = int(total_moves / 10)
+        print(
+            f"There are {total_moves} moves and {len(self.possible_answers)} answers to evaluate. Will print progress every {print_every} moves"
+        )
+
+        for possible_move_idx in range(len(self.dictionary)):
+            if possible_move_idx % print_every == 0:
+                print(f"Evaluated {possible_move_idx} out of {total_moves} moves")
+
+            move = Move(possible_move_idx)
+            for possible_answer_idx in range(len(self.dictionary)):
+                prediction: Response = predict(
+                    self.dictionary, move, Answer(possible_answer_idx)
+                )
+                self.predictions[
+                    possible_move_idx * num_words + possible_answer_idx
+                ] = prediction
 
     def best_move(self) -> Move:
         """Given the current state of the game, what's the best move?
@@ -176,8 +185,9 @@ class GameState(object):
         if len(self.possible_answers) == 1:
             return Move(list(self.possible_answers)[0])
 
-        response_distribution: dict[Move, dict[Response, int]] = defaultdict(
-            lambda: defaultdict(int)
+        # TODO: either allcate this in one big fell swoop or go back to defaultdict of defaultdict
+        response_distribution: dict[Move, np.ndarray[Any, Any]] = defaultdict(
+            lambda: np.zeros(256, np.uint16)
         )
 
         total_moves = len(self.dictionary)
@@ -186,14 +196,15 @@ class GameState(object):
             f"There are {total_moves} moves and {len(self.possible_answers)} answers to evaluate. Will print progress every {print_every} moves"
         )
 
-        for i, possible_answer in enumerate(self.dictionary):
-            i += 1
-            if i % print_every == 0:
-                print(f"Evaluated {i} out of {total_moves} moves")
+        for possible_move_idx in range(len(self.dictionary)):
+            if possible_move_idx % print_every == 0:
+                print(f"Evaluated {possible_move_idx} out of {total_moves} moves")
 
-            move = Move(possible_answer)
+            move = Move(possible_move_idx)
             for answer in self.possible_answers:
-                prediction: Response = predict(move, answer)
+                prediction: Response = self.predictions[
+                    possible_move_idx * total_moves + answer
+                ]
                 response_distribution[move][prediction] += 1
 
         entropy: dict[Move, float] = {}
@@ -202,16 +213,16 @@ class GameState(object):
 
         entropy_list = list(reversed(sorted(entropy.items(), key=lambda y: y[1])))
         for top10_item in entropy_list[:10]:
-            print((unpack_word(top10_item[0]), top10_item[1]))
+            print((self.dictionary[top10_item[0]], top10_item[1]))
         return entropy_list[0][0]
 
 
 if __name__ == "__main__":
-    for test_word in ["tales", "stare", "zzzzz", "aaaaa"]:
-        assert unpack_word(pack_word(test_word)) == test_word
-    dictionary = [x.strip() for x in open("common.txt").readlines()]
-    dictionary_ = [Answer(pack_word(x.lower())) for x in dictionary if len(x) == 5]
-    game = GameState(set(dictionary_))
+    dictionary = [x.strip() for x in open("dictionary.txt").readlines()]
+    dictionary_ = list(sorted([x.lower() for x in dictionary if len(x) == 5]))
+    game = GameState(dictionary_)
+    with timing_context("precompute"):
+        game.compute_all_predictions()
     with timing_context("first time"):
         game.best_move()
     with timing_context("second time"):
