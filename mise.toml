@@ -1,0 +1,29 @@
+[tools]
+python = "3.11"
+uv = "latest"
+ruff = "latest"
+
+[env]
+# _.python.venv = { path = ".venv", create = true, uv_create_args = ['--seed'] }
+_.python.venv = { path = ".venv", create = true}
+
+[tasks.install]
+description = "Install dependencies"
+run = "uv pip install -r requirements.txt"
+
+[tasks.typecheck]
+description = "Lint, typecheck and format"
+alias = "t"
+run = """
+ruff format
+ruff check
+uvx ty check
+"""
+
+
+[tasks.precompute]
+description = "Compute predictions files from dictionaries"
+alias = "p"
+run = """
+python3 wordle.py
+"""
