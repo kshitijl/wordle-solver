@@ -27,3 +27,10 @@ alias = "p"
 run = """
 python3 wordle.py
 """
+
+[tasks.repl]
+description = "Start a repl with file loaded"
+alias = "r"
+run = """
+ipython3 -i wordle.py
+"""
